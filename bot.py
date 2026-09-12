@@ -147,16 +147,235 @@ def score_news(item):
 
     score = 0
 
+    # =====================================
+    # ข่าวสำคัญทั่วไป
+    # =====================================
+
     for keyword in IMPORTANT_KEYWORDS:
         if keyword.lower() in title:
             score += 2
 
+    # =====================================
+    # ข่าวด่วน / เหตุการณ์สำคัญ
+    # =====================================
+
+    HIGH_IMPACT_KEYWORDS = [
+        "ด่วน",
+        "ล่าสุด",
+        "ประกาศ",
+        "เตือนภัย",
+        "วิกฤต",
+        "ฉุกเฉิน",
+        "กระทบ",
+        "ครั้งแรก",
+        "ครั้งใหญ่",
+        "สำคัญ",
+    ]
+
+    for keyword in HIGH_IMPACT_KEYWORDS:
+        if keyword.lower() in title:
+            score += 4
+
+    # =====================================
+    # AI
+    # =====================================
+
+    AI_KEYWORDS = [
+        "ai",
+        "artificial intelligence",
+        "ปัญญาประดิษฐ์",
+        "generative ai",
+        "agentic ai",
+        "ai agent",
+        "chatgpt",
+        "openai",
+        "claude",
+        "gemini",
+        "deepseek",
+        "copilot",
+    ]
+
+    for keyword in AI_KEYWORDS:
+        if keyword.lower() in title:
+            score += 4
+
+    # =====================================
+    # Cybersecurity
+    # =====================================
+
+    CYBER_KEYWORDS = [
+        "cybersecurity",
+        "cyber security",
+        "ไซเบอร์",
+        "แฮก",
+        "แฮ็ก",
+        "hack",
+        "hacking",
+        "hacker",
+        "malware",
+        "ransomware",
+        "data breach",
+        "breach",
+        "ข้อมูลรั่ว",
+        "ถูกโจมตี",
+        "โจมตีทางไซเบอร์",
+        "ขโมยข้อมูล",
+    ]
+
+    for keyword in CYBER_KEYWORDS:
+        if keyword.lower() in title:
+            score += 5
+
+    # =====================================
+    # บริษัท Technology รายใหญ่
+    # =====================================
+
+    BIG_TECH = [
+        "microsoft",
+        "google",
+        "apple",
+        "amazon",
+        "meta",
+        "nvidia",
+        "openai",
+        "tesla",
+        "samsung",
+        "qualcomm",
+        "intel",
+        "amd",
+        "oracle",
+        "adobe",
+        "shopify",
+    ]
+
+    for keyword in BIG_TECH:
+        if keyword.lower() in title:
+            score += 3
+
+    # =====================================
+    # Technology Trends
+    # =====================================
+
+    TECH_TREND_KEYWORDS = [
+        "cloud",
+        "5g",
+        "6g",
+        "semiconductor",
+        "chip",
+        "ชิป",
+        "data center",
+        "ดาต้าเซ็นเตอร์",
+        "robot",
+        "หุ่นยนต์",
+        "quantum",
+        "blockchain",
+        "electric vehicle",
+        "ev",
+        "autonomous",
+        "รถยนต์ไร้คนขับ",
+    ]
+
+    for keyword in TECH_TREND_KEYWORDS:
+        if keyword.lower() in title:
+            score += 2
+
+    # =====================================
+    # การเมือง
+    # =====================================
+
+    POLITICS_KEYWORDS = [
+        "รัฐบาล",
+        "นายกรัฐมนตรี",
+        "รัฐมนตรี",
+        "เลือกตั้ง",
+        "นโยบาย",
+        "กฎหมาย",
+        "สภา",
+        "รัฐสภา",
+        "ฝ่ายค้าน",
+        "พรรคร่วม",
+    ]
+
+    for keyword in POLITICS_KEYWORDS:
+        if keyword.lower() in title:
+            score += 4
+
+    # =====================================
+    # เศรษฐกิจ / การเงิน
+    # =====================================
+
+    ECONOMIC_KEYWORDS = [
+        "ตลาดหุ้น",
+        "หุ้น",
+        "set",
+        "ดัชนี",
+        "เศรษฐกิจ",
+        "การลงทุน",
+        "นักลงทุน",
+        "ดอกเบี้ย",
+        "เงินบาท",
+        "ค่าเงินบาท",
+        "ธนาคาร",
+        "ราคาทอง",
+        "ทองคำ",
+        "น้ำมัน",
+        "เงินเฟ้อ",
+        "จีดีพี",
+        "gdp",
+    ]
+
+    for keyword in ECONOMIC_KEYWORDS:
+        if keyword.lower() in title:
+            score += 3
+
+    # =====================================
+    # กีฬา
+    # =====================================
+
+    SPORTS_KEYWORDS = [
+        "ผลการแข่งขัน",
+        "ชนะ",
+        "แพ้",
+        "เสมอ",
+        "ทีมชาติไทย",
+        "ทีมชาติ",
+        "พรีเมียร์ลีก",
+        "ยูฟ่า",
+        "แชมเปียนส์ลีก",
+        "champions league",
+        "premier league",
+        "ฟุตบอลโลก",
+        "world cup",
+    ]
+
+    for keyword in SPORTS_KEYWORDS:
+        if keyword.lower() in title:
+            score += 3
+
+    # =====================================
+    # ข่าวบันเทิง / ข่าวเบา
+    # =====================================
+
+    LOW_PRIORITY_KEYWORDS = [
+        "ดารา",
+        "บันเทิง",
+        "ละคร",
+        "เพลง",
+        "แฟชั่น",
+        "ความรัก",
+        "ดวง",
+        "ไลฟ์สไตล์",
+        "กินเที่ยว",
+        "ท่องเที่ยว",
+    ]
+
     for keyword in LOW_PRIORITY_KEYWORDS:
         if keyword.lower() in title:
-            score -= 2
+            score -= 3
 
-    if "ด่วน" in title:
-        score += 5
+    # =====================================
+    # มีตัวเลข = มักมีข้อมูลสำคัญ
+    # =====================================
 
     if re.search(r"\d", title):
         score += 1
