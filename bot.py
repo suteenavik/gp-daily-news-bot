@@ -5,19 +5,34 @@ import feedparser
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
+# =========================
 # RSS แหล่งข่าว
+# =========================
+
 NEWS_RSS = "https://www.thairath.co.th/rss/news"
 TECH_RSS = "https://feeds.arstechnica.com/arstechnica/index"
 POLITICS_RSS = "http://rssfeeds.sanook.com/rss/feeds/sanook/news.politic.xml"
 SPORTS_RSS = "https://www.thairath.co.th/rss/sport"
+ECONOMIC_RSS = "http://rssfeeds.sanook.com/rss/feeds/sanook/news.economic.xml"
 
+
+# =========================
 # อ่านข่าว
+# =========================
+
 news_feed = feedparser.parse(NEWS_RSS)
 tech_feed = feedparser.parse(TECH_RSS)
 politics_feed = feedparser.parse(POLITICS_RSS)
 sports_feed = feedparser.parse(SPORTS_RSS)
+economic_feed = feedparser.parse(ECONOMIC_RSS)
+
+
+# =========================
+# สร้างข้อความ
+# =========================
 
 message = "☀️ GP MORNING BRIEF\n\n"
+
 
 # =========================
 # 📰 ข่าวเด่น
@@ -32,6 +47,7 @@ for item in news_feed.entries[:5]:
     message += f"• {title}\n"
     message += f"{link}\n\n"
 
+
 # =========================
 # 💻 IT / TECHNOLOGY
 # =========================
@@ -44,6 +60,7 @@ for item in tech_feed.entries[:5]:
 
     message += f"• {title}\n"
     message += f"{link}\n\n"
+
 
 # =========================
 # 🏛️ การเมือง
@@ -58,6 +75,7 @@ for item in politics_feed.entries[:5]:
     message += f"• {title}\n"
     message += f"{link}\n\n"
 
+
 # =========================
 # ⚽ SPORTS
 # =========================
@@ -70,6 +88,21 @@ for item in sports_feed.entries[:5]:
 
     message += f"• {title}\n"
     message += f"{link}\n\n"
+
+
+# =========================
+# 📈 หุ้น / เศรษฐกิจ
+# =========================
+
+message += "📈 หุ้น / เศรษฐกิจ\n\n"
+
+for item in economic_feed.entries[:5]:
+    title = item.get("title", "ไม่มีหัวข้อ")
+    link = item.get("link", "")
+
+    message += f"• {title}\n"
+    message += f"{link}\n\n"
+
 
 # =========================
 # ส่ง Telegram
