@@ -14,9 +14,17 @@ CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 # =========================
 
 NEWS_RSS = "https://www.thairath.co.th/rss/news"
-TECH_RSS = "https://feeds.arstechnica.com/arstechnica/index"
+
+# IT ไทย
+TECH_TH_RSS = "https://www.blognone.com/atom.xml"
+
+# IT ต่างประเทศ
+TECH_GLOBAL_RSS = "https://feeds.arstechnica.com/arstechnica/index"
+
 POLITICS_RSS = "http://rssfeeds.sanook.com/rss/feeds/sanook/news.politic.xml"
+
 SPORTS_RSS = "https://www.thairath.co.th/rss/sport"
+
 ECONOMIC_RSS = "http://rssfeeds.sanook.com/rss/feeds/sanook/news.economic.xml"
 
 
@@ -25,7 +33,10 @@ ECONOMIC_RSS = "http://rssfeeds.sanook.com/rss/feeds/sanook/news.economic.xml"
 # =========================
 
 news_feed = feedparser.parse(NEWS_RSS)
-tech_feed = feedparser.parse(TECH_RSS)
+
+tech_th_feed = feedparser.parse(TECH_TH_RSS)
+tech_global_feed = feedparser.parse(TECH_GLOBAL_RSS)
+
 politics_feed = feedparser.parse(POLITICS_RSS)
 sports_feed = feedparser.parse(SPORTS_RSS)
 economic_feed = feedparser.parse(ECONOMIC_RSS)
@@ -74,6 +85,19 @@ def remove_duplicates(items):
 
 
 # =========================
+# รวมข่าวจากหลาย Feed
+# =========================
+
+def combine_feeds(*feeds):
+    combined = []
+
+    for feed in feeds:
+        combined.extend(feed.entries)
+
+    return combined
+
+
+# =========================
 # คำสำคัญสำหรับให้คะแนนข่าว
 # =========================
 
@@ -115,6 +139,14 @@ IMPORTANT_KEYWORDS = [
     "Nvidia",
     "OpenAI",
     "Tesla",
+    "Gemini",
+    "iPhone",
+    "Android",
+    "Cloud",
+    "Cyber",
+    "Hack",
+    "Hacking",
+    "Data Breach",
     "ฟุตบอล",
     "ทีมชาติ",
     "พรีเมียร์ลีก",
@@ -198,16 +230,17 @@ def get_thai_time(item):
 # =========================
 # กรองข่าว 24 ชั่วโมง
 # + ตัดข่าวซ้ำ
-# + จัดอันดับข่าว
+# + จัดอันดับ
 # =========================
 
-def get_recent_news(feed, limit=5):
+def get_recent_news(feed_entries, limit=5):
     now = datetime.now(timezone.utc)
     cutoff = now - timedelta(hours=24)
 
     recent_news = []
 
-    for item in feed.entries:
+    for item in feed_entries:
+
         published_time = item.get("published_parsed")
 
         if not published_time:
@@ -230,11 +263,15 @@ def get_recent_news(feed, limit=5):
         except Exception:
             continue
 
+    # ตัดข่าวซ้ำ
     recent_news = remove_duplicates(recent_news)
 
+    # ให้คะแนน
     for item in recent_news:
         item["_news_score"] = score_news(item)
 
+    # เรียงคะแนนสูงสุดก่อน
+    # ถ้าคะแนนเท่ากัน ให้ข่าวใหม่กว่าอยู่ก่อน
     recent_news.sort(
         key=lambda item: (
             item.get("_news_score", 0),
@@ -250,11 +287,40 @@ def get_recent_news(feed, limit=5):
 # ดึงข่าวแต่ละหมวด
 # =========================
 
-news_items = get_recent_news(news_feed, 5)
-tech_items = get_recent_news(tech_feed, 5)
-politics_items = get_recent_news(politics_feed, 5)
-sports_items = get_recent_news(sports_feed, 5)
-economic_items = get_recent_news(economic_feed, 5)
+news_items = get_recent_news(
+    news_feed.entries,
+    5
+)
+
+
+# IT รวมไทย + ต่างประเทศ
+tech_entries = combine_feeds(
+    tech_th_feed,
+    tech_global_feed
+)
+
+tech_items = get_recent_news(
+    tech_entries,
+    5
+)
+
+
+politics_items = get_recent_news(
+    politics_feed.entries,
+    5
+)
+
+
+sports_items = get_recent_news(
+    sports_feed.entries,
+    5
+)
+
+
+economic_items = get_recent_news(
+    economic_feed.entries,
+    5
+)
 
 
 # =========================
@@ -262,9 +328,11 @@ economic_items = get_recent_news(economic_feed, 5)
 # =========================
 
 thai_timezone = timezone(timedelta(hours=7))
+
 now_thai = datetime.now(thai_timezone)
 
 thai_date = now_thai.strftime("%d/%m/%Y")
+
 thai_time = now_thai.strftime("%H:%M")
 
 
@@ -273,8 +341,11 @@ thai_time = now_thai.strftime("%H:%M")
 # =========================
 
 message = "☀️ GP MORNING BRIEF\n"
+
 message += f"📅 {thai_date}  🕐 {thai_time} น.\n"
+
 message += "📰 ข่าวสำคัญในรอบ 24 ชั่วโมง\n"
+
 message += "━━━━━━━━━━━━━━━━━━\n\n"
 
 
@@ -283,63 +354,124 @@ message += "━━━━━━━━━━━━━━━━━━\n\n"
 # =========================
 
 def add_section(title, items):
+
     global message
 
     message += f"{title}\n\n"
 
     if not items:
+
         message += "ไม่มีข่าวในช่วง 24 ชั่วโมงล่าสุด\n\n"
+
         message += "━━━━━━━━━━━━━━━━━━\n\n"
+
         return
 
-    for index, item in enumerate(items, start=1):
-        title_text = item.get("title", "ไม่มีหัวข้อ")
-        link = item.get("link", "")
-        news_time = get_thai_time(item)
 
-        message += f"{index}️⃣ {title_text}\n"
+    for index, item in enumerate(items, start=1):
+
+        title_text = item.get(
+            "title",
+            "ไม่มีหัวข้อ"
+        )
+
+        link = item.get(
+            "link",
+            ""
+        )
+
+        news_time = get_thai_time(
+            item
+        )
+
+
+        message += (
+            f"{index}️⃣ {title_text}\n"
+        )
+
 
         if news_time:
-            message += f"   🕐 {news_time} น.\n"
+
+            message += (
+                f"   🕐 {news_time} น.\n"
+            )
+
 
         if link:
-            message += f"   🔗 {link}\n"
+
+            message += (
+                f"   🔗 {link}\n"
+            )
+
 
         message += "\n"
 
-    message += "━━━━━━━━━━━━━━━━━━\n\n"
+
+    message += (
+        "━━━━━━━━━━━━━━━━━━\n\n"
+    )
 
 
 # =========================
 # เพิ่มข่าว 5 หมวด
 # =========================
 
-add_section("📰 ข่าวเด่น", news_items)
+add_section(
+    "📰 ข่าวเด่น",
+    news_items
+)
 
-add_section("💻 IT / TECHNOLOGY", tech_items)
 
-add_section("🏛️ การเมือง", politics_items)
+add_section(
+    "💻 IT / TECHNOLOGY 🇹🇭 + 🌎",
+    tech_items
+)
 
-add_section("⚽ SPORTS", sports_items)
 
-add_section("📈 หุ้น / เศรษฐกิจ", economic_items)
+add_section(
+    "🏛️ การเมือง",
+    politics_items
+)
+
+
+add_section(
+    "⚽ SPORTS",
+    sports_items
+)
+
+
+add_section(
+    "📈 หุ้น / เศรษฐกิจ",
+    economic_items
+)
 
 
 # =========================
 # ส่ง Telegram
 # =========================
 
-url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+url = (
+    f"https://api.telegram.org/"
+    f"bot{TOKEN}/sendMessage"
+)
+
 
 response = requests.post(
+
     url,
+
     data={
         "chat_id": CHAT_ID,
         "text": message,
     },
+
     timeout=30,
 )
 
+
 response.raise_for_status()
 
-print("Morning Brief sent successfully.")
+
+print(
+    "Morning Brief sent successfully."
+)
