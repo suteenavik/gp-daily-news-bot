@@ -1,6 +1,7 @@
 import os
 import requests
 import feedparser
+import re
 from datetime import datetime, timedelta, timezone
 
 
@@ -31,6 +32,51 @@ economic_feed = feedparser.parse(ECONOMIC_RSS)
 
 
 # =========================
+# ทำหัวข้อให้เหมาะกับการ
+# ตรวจข่าวซ้ำ
+# =========================
+
+def normalize_title(title):
+    title = title.lower()
+
+    # ลบ URL
+    title = re.sub(r"https?://\S+", "", title)
+
+    # ลบเครื่องหมายพิเศษ
+    title = re.sub(r"[^\w\sก-๙]", " ", title)
+
+    # ลดช่องว่าง
+    title = re.sub(r"\s+", " ", title).strip()
+
+    return title
+
+
+# =========================
+# ตรวจข่าวซ้ำ
+# =========================
+
+def remove_duplicates(items):
+    unique_items = []
+    seen_titles = set()
+
+    for item in items:
+        title = item.get("title", "").strip()
+
+        if not title:
+            continue
+
+        normalized = normalize_title(title)
+
+        if normalized in seen_titles:
+            continue
+
+        seen_titles.add(normalized)
+        unique_items.append(item)
+
+    return unique_items
+
+
+# =========================
 # ฟังก์ชันกรองข่าว 24 ชั่วโมง
 # =========================
 
@@ -43,7 +89,6 @@ def get_recent_news(feed, limit=5):
     for item in feed.entries:
         published_time = item.get("published_parsed")
 
-        # ถ้า RSS ไม่มีวันเวลา ให้ข้ามข่าวนี้
         if not published_time:
             continue
 
@@ -58,18 +103,20 @@ def get_recent_news(feed, limit=5):
                 tzinfo=timezone.utc,
             )
 
-            # เอาเฉพาะข่าวย้อนหลังไม่เกิน 24 ชั่วโมง
             if published_dt >= cutoff:
                 recent_news.append(item)
 
         except Exception:
             continue
 
-    # เรียงจากข่าวใหม่สุดก่อน
+    # เรียงข่าวใหม่สุดก่อน
     recent_news.sort(
         key=lambda item: item.get("published_parsed"),
         reverse=True,
     )
+
+    # ตัดข่าวซ้ำ
+    recent_news = remove_duplicates(recent_news)
 
     return recent_news[:limit]
 
@@ -90,11 +137,12 @@ economic_items = get_recent_news(economic_feed, 5)
 # =========================
 
 message = "☀️ GP MORNING BRIEF\n"
-message += "🕐 ข่าวย้อนหลัง 24 ชั่วโมง\n\n"
+message += "🕐 ข่าวย้อนหลัง 24 ชั่วโมง\n"
+message += "🔎 ตัดข่าวซ้ำแล้ว\n\n"
 
 
 # =========================
-# ฟังก์ชันสร้างหมวดข่าว
+# เพิ่มหมวดข่าว
 # =========================
 
 def add_section(title, items):
