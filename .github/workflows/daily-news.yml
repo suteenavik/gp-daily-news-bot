@@ -22,7 +22,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests
+          pip install requests -r requirements.txt
 
       - name: Run GP Daily News Bot
         env:
