@@ -556,8 +556,7 @@ def get_recent_news(feed_entries, limit=5):
             continue
 
 
-   recent_news = remove_duplicates(recent_news)
-   recent_news = remove_similar_news(recent_news)
+    recent_news = remove_duplicates(recent_news)
 
 
     for item in recent_news:
