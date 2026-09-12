@@ -1,25 +1,27 @@
 import os
 import requests
+import feedparser
 
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-message = """
-📰 GP Daily News Bot
+# RSS ข่าวสำหรับทดสอบ
+RSS_URL = "https://www.thairath.co.th/rss/news"
 
-✅ ระบบเชื่อมต่อ GitHub → Telegram สำเร็จแล้ว
+feed = feedparser.parse(RSS_URL)
 
-นี่คือการทดสอบ V1 ครั้งแรกครับ
+message = "📰 GP Daily News Bot\n\n"
+message += "🔥 ข่าวล่าสุดจากไทยรัฐ\n\n"
 
-ขั้นต่อไป GP จะเริ่มเพิ่มระบบ:
-• 🏛️ ข่าวการเมือง
-• 💻 IT / Technology
-• ⚽ ผลกีฬา
-• 📈 หุ้นที่น่าสนใจ
-• 📰 ข่าวเด่นรอบ 24 ชั่วโมง
+for item in feed.entries[:5]:
+    title = item.get("title", "ไม่มีหัวข้อ")
+    link = item.get("link", "")
 
-รอติดตาม Morning Brief ได้เลยครับ ☕
-"""
+    message += f"• {title}\n"
+    message += f"{link}\n\n"
+
+if len(feed.entries) == 0:
+    message += "⚠️ ยังไม่พบข่าวจาก RSS"
 
 url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
@@ -34,4 +36,4 @@ response = requests.post(
 
 response.raise_for_status()
 
-print("Telegram message sent successfully.")
+print("News sent successfully.")
