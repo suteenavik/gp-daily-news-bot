@@ -5,23 +5,45 @@ import feedparser
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-# RSS ข่าวสำหรับทดสอบ
-RSS_URL = "https://www.thairath.co.th/rss/news"
+# RSS แหล่งข่าว
+NEWS_RSS = "https://www.thairath.co.th/rss/news"
+TECH_RSS = "https://feeds.arstechnica.com/arstechnica/index"
 
-feed = feedparser.parse(RSS_URL)
+# อ่านข่าว
+news_feed = feedparser.parse(NEWS_RSS)
+tech_feed = feedparser.parse(TECH_RSS)
 
-message = "📰 GP Daily News Bot\n\n"
-message += "🔥 ข่าวล่าสุดจากไทยรัฐ\n\n"
+message = "☀️ GP MORNING BRIEF\n\n"
 
-for item in feed.entries[:5]:
+# =========================
+# 📰 ข่าวทั่วไป
+# =========================
+
+message += "📰 ข่าวเด่น\n\n"
+
+for item in news_feed.entries[:5]:
     title = item.get("title", "ไม่มีหัวข้อ")
     link = item.get("link", "")
 
     message += f"• {title}\n"
     message += f"{link}\n\n"
 
-if len(feed.entries) == 0:
-    message += "⚠️ ยังไม่พบข่าวจาก RSS"
+# =========================
+# 💻 IT / TECHNOLOGY
+# =========================
+
+message += "💻 IT / TECHNOLOGY\n\n"
+
+for item in tech_feed.entries[:5]:
+    title = item.get("title", "ไม่มีหัวข้อ")
+    link = item.get("link", "")
+
+    message += f"• {title}\n"
+    message += f"{link}\n\n"
+
+# =========================
+# ส่ง Telegram
+# =========================
 
 url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
 
@@ -36,4 +58,4 @@ response = requests.post(
 
 response.raise_for_status()
 
-print("News sent successfully.")
+print("Morning Brief sent successfully.")
