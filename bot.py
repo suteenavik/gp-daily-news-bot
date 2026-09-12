@@ -39,13 +39,10 @@ economic_feed = feedparser.parse(ECONOMIC_RSS)
 def normalize_title(title):
     title = title.lower()
 
-    # ลบ URL
     title = re.sub(r"https?://\S+", "", title)
 
-    # ลบเครื่องหมายพิเศษ
     title = re.sub(r"[^\w\sก-๙]", " ", title)
 
-    # ลดช่องว่าง
     title = re.sub(r"\s+", " ", title).strip()
 
     return title
@@ -77,7 +74,105 @@ def remove_duplicates(items):
 
 
 # =========================
-# ฟังก์ชันกรองข่าว 24 ชั่วโมง
+# คำสำคัญสำหรับให้คะแนนข่าว
+# =========================
+
+IMPORTANT_KEYWORDS = [
+    "ด่วน",
+    "สำคัญ",
+    "ประกาศ",
+    "กระทบ",
+    "วิกฤต",
+    "เตือนภัย",
+    "ฉุกเฉิน",
+    "รัฐบาล",
+    "นายกรัฐมนตรี",
+    "รัฐมนตรี",
+    "เลือกตั้ง",
+    "นโยบาย",
+    "กฎหมาย",
+    "สงคราม",
+    "ความขัดแย้ง",
+    "หุ้น",
+    "ตลาดหุ้น",
+    "เศรษฐกิจ",
+    "การลงทุน",
+    "นักลงทุน",
+    "ราคาทอง",
+    "น้ำมัน",
+    "ดอกเบี้ย",
+    "เงินบาท",
+    "ธนาคาร",
+    "บริษัท",
+    "AI",
+    "เทคโนโลยี",
+    "Cybersecurity",
+    "Microsoft",
+    "Google",
+    "Apple",
+    "Amazon",
+    "Meta",
+    "Nvidia",
+    "OpenAI",
+    "Tesla",
+    "ฟุตบอล",
+    "ทีมชาติ",
+    "พรีเมียร์ลีก",
+    "พรีเมียร์ลีกอังกฤษ",
+    "ยูฟ่า",
+    "แชมเปียนส์ลีก",
+    "ผลการแข่งขัน",
+    "ชนะ",
+    "แพ้",
+]
+
+
+LOW_PRIORITY_KEYWORDS = [
+    "ดารา",
+    "บันเทิง",
+    "ละคร",
+    "เพลง",
+    "แฟชั่น",
+    "ความรัก",
+    "ดวง",
+    "ไลฟ์สไตล์",
+]
+
+
+# =========================
+# ให้คะแนนข่าว
+# =========================
+
+def score_news(item):
+    title = item.get("title", "").lower()
+
+    score = 0
+
+    # คำสำคัญที่เพิ่มความสำคัญ
+    for keyword in IMPORTANT_KEYWORDS:
+        if keyword.lower() in title:
+            score += 2
+
+    # คำที่ลดความสำคัญ
+    for keyword in LOW_PRIORITY_KEYWORDS:
+        if keyword.lower() in title:
+            score -= 2
+
+    # ข่าวที่มีคำว่า "ด่วน" ให้คะแนนพิเศษ
+    if "ด่วน" in title:
+        score += 5
+
+    # ข่าวที่มีตัวเลข เช่น ราคา / เปอร์เซ็นต์ / มูลค่า
+    if re.search(r"\d", title):
+        score += 1
+
+    return score
+
+
+# =========================
+# กรองข่าว 24 ชั่วโมง
+# + ตัดข่าวซ้ำ
+# + จัดอันดับข่าว
 # =========================
 
 def get_recent_news(feed, limit=5):
@@ -109,14 +204,22 @@ def get_recent_news(feed, limit=5):
         except Exception:
             continue
 
-    # เรียงข่าวใหม่สุดก่อน
-    recent_news.sort(
-        key=lambda item: item.get("published_parsed"),
-        reverse=True,
-    )
-
     # ตัดข่าวซ้ำ
     recent_news = remove_duplicates(recent_news)
+
+    # ให้คะแนนข่าว
+    for item in recent_news:
+        item["_news_score"] = score_news(item)
+
+    # เรียงคะแนนสูงสุดก่อน
+    # ถ้าคะแนนเท่ากัน ข่าวใหม่กว่าจะอยู่ก่อน
+    recent_news.sort(
+        key=lambda item: (
+            item.get("_news_score", 0),
+            item.get("published_parsed"),
+        ),
+        reverse=True,
+    )
 
     return recent_news[:limit]
 
@@ -138,7 +241,7 @@ economic_items = get_recent_news(economic_feed, 5)
 
 message = "☀️ GP MORNING BRIEF\n"
 message += "🕐 ข่าวย้อนหลัง 24 ชั่วโมง\n"
-message += "🔎 ตัดข่าวซ้ำแล้ว\n\n"
+message += "⭐ คัดข่าวที่น่าสนใจแล้ว\n\n"
 
 
 # =========================
