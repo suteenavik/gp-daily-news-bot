@@ -118,7 +118,6 @@ IMPORTANT_KEYWORDS = [
     "ฟุตบอล",
     "ทีมชาติ",
     "พรีเมียร์ลีก",
-    "พรีเมียร์ลีกอังกฤษ",
     "ยูฟ่า",
     "แชมเปียนส์ลีก",
     "ผลการแข่งขัน",
@@ -148,25 +147,52 @@ def score_news(item):
 
     score = 0
 
-    # คำสำคัญที่เพิ่มความสำคัญ
     for keyword in IMPORTANT_KEYWORDS:
         if keyword.lower() in title:
             score += 2
 
-    # คำที่ลดความสำคัญ
     for keyword in LOW_PRIORITY_KEYWORDS:
         if keyword.lower() in title:
             score -= 2
 
-    # ข่าวที่มีคำว่า "ด่วน" ให้คะแนนพิเศษ
     if "ด่วน" in title:
         score += 5
 
-    # ข่าวที่มีตัวเลข เช่น ราคา / เปอร์เซ็นต์ / มูลค่า
     if re.search(r"\d", title):
         score += 1
 
     return score
+
+
+# =========================
+# แปลงเวลาเป็นเวลาไทย
+# =========================
+
+def get_thai_time(item):
+    published_time = item.get("published_parsed")
+
+    if not published_time:
+        return ""
+
+    try:
+        published_dt = datetime(
+            published_time.tm_year,
+            published_time.tm_mon,
+            published_time.tm_mday,
+            published_time.tm_hour,
+            published_time.tm_min,
+            published_time.tm_sec,
+            tzinfo=timezone.utc,
+        )
+
+        thai_time = published_dt.astimezone(
+            timezone(timedelta(hours=7))
+        )
+
+        return thai_time.strftime("%H:%M")
+
+    except Exception:
+        return ""
 
 
 # =========================
@@ -204,15 +230,11 @@ def get_recent_news(feed, limit=5):
         except Exception:
             continue
 
-    # ตัดข่าวซ้ำ
     recent_news = remove_duplicates(recent_news)
 
-    # ให้คะแนนข่าว
     for item in recent_news:
         item["_news_score"] = score_news(item)
 
-    # เรียงคะแนนสูงสุดก่อน
-    # ถ้าคะแนนเท่ากัน ข่าวใหม่กว่าจะอยู่ก่อน
     recent_news.sort(
         key=lambda item: (
             item.get("_news_score", 0),
@@ -236,12 +258,24 @@ economic_items = get_recent_news(economic_feed, 5)
 
 
 # =========================
+# วันที่และเวลาปัจจุบันของไทย
+# =========================
+
+thai_timezone = timezone(timedelta(hours=7))
+now_thai = datetime.now(thai_timezone)
+
+thai_date = now_thai.strftime("%d/%m/%Y")
+thai_time = now_thai.strftime("%H:%M")
+
+
+# =========================
 # สร้างข้อความ
 # =========================
 
 message = "☀️ GP MORNING BRIEF\n"
-message += "🕐 ข่าวย้อนหลัง 24 ชั่วโมง\n"
-message += "⭐ คัดข่าวที่น่าสนใจแล้ว\n\n"
+message += f"📅 {thai_date}  🕐 {thai_time} น.\n"
+message += "📰 ข่าวสำคัญในรอบ 24 ชั่วโมง\n"
+message += "━━━━━━━━━━━━━━━━━━\n\n"
 
 
 # =========================
@@ -255,18 +289,25 @@ def add_section(title, items):
 
     if not items:
         message += "ไม่มีข่าวในช่วง 24 ชั่วโมงล่าสุด\n\n"
+        message += "━━━━━━━━━━━━━━━━━━\n\n"
         return
 
-    for item in items:
+    for index, item in enumerate(items, start=1):
         title_text = item.get("title", "ไม่มีหัวข้อ")
         link = item.get("link", "")
+        news_time = get_thai_time(item)
 
-        message += f"• {title_text}\n"
+        message += f"{index}️⃣ {title_text}\n"
+
+        if news_time:
+            message += f"   🕐 {news_time} น.\n"
 
         if link:
-            message += f"{link}\n"
+            message += f"   🔗 {link}\n"
 
         message += "\n"
+
+    message += "━━━━━━━━━━━━━━━━━━\n\n"
 
 
 # =========================
