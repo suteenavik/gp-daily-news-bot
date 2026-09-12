@@ -4,32 +4,21 @@ import feedparser
 import re
 from datetime import datetime, timedelta, timezone
 
-
 TOKEN = os.environ["TELEGRAM_TOKEN"]
 CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
 
-
-# =========================
-# RSS แหล่งข่าว
-# =========================
-
 NEWS_RSS = "https://www.thairath.co.th/rss/news"
 
-# IT ไทย
 TECH_TH_RSS = "https://www.blognone.com/atom.xml"
-
-# IT ต่างประเทศ
 TECH_GLOBAL_RSS = "https://feeds.arstechnica.com/arstechnica/index"
 
 POLITICS_RSS = "http://rssfeeds.sanook.com/rss/feeds/sanook/news.politic.xml"
-
 SPORTS_RSS = "https://www.thairath.co.th/rss/sport"
-
 ECONOMIC_RSS = "http://rssfeeds.sanook.com/rss/feeds/sanook/news.economic.xml"
 
 
 # =========================
-# อ่าน RSS
+# LOAD RSS FEEDS
 # =========================
 
 news_feed = feedparser.parse(NEWS_RSS)
@@ -43,25 +32,16 @@ economic_feed = feedparser.parse(ECONOMIC_RSS)
 
 
 # =========================
-# ทำหัวข้อให้เหมาะกับการ
-# ตรวจข่าวซ้ำ
+# REMOVE DUPLICATE TITLES
 # =========================
 
 def normalize_title(title):
     title = title.lower()
-
     title = re.sub(r"https?://\S+", "", title)
-
     title = re.sub(r"[^\w\sก-๙]", " ", title)
-
     title = re.sub(r"\s+", " ", title).strip()
-
     return title
 
-
-# =========================
-# ตรวจข่าวซ้ำ
-# =========================
 
 def remove_duplicates(items):
     unique_items = []
@@ -85,20 +65,7 @@ def remove_duplicates(items):
 
 
 # =========================
-# รวมข่าวจากหลาย Feed
-# =========================
-
-def combine_feeds(*feeds):
-    combined = []
-
-    for feed in feeds:
-        combined.extend(feed.entries)
-
-    return combined
-
-
-# =========================
-# คำสำคัญสำหรับให้คะแนนข่าว
+# NEWS SCORING
 # =========================
 
 IMPORTANT_KEYWORDS = [
@@ -109,14 +76,17 @@ IMPORTANT_KEYWORDS = [
     "วิกฤต",
     "เตือนภัย",
     "ฉุกเฉิน",
+
     "รัฐบาล",
     "นายกรัฐมนตรี",
     "รัฐมนตรี",
     "เลือกตั้ง",
     "นโยบาย",
     "กฎหมาย",
+
     "สงคราม",
     "ความขัดแย้ง",
+
     "หุ้น",
     "ตลาดหุ้น",
     "เศรษฐกิจ",
@@ -128,9 +98,9 @@ IMPORTANT_KEYWORDS = [
     "เงินบาท",
     "ธนาคาร",
     "บริษัท",
+
     "AI",
     "เทคโนโลยี",
-    "Cybersecurity",
     "Microsoft",
     "Google",
     "Apple",
@@ -144,9 +114,11 @@ IMPORTANT_KEYWORDS = [
     "Android",
     "Cloud",
     "Cyber",
+    "Cybersecurity",
     "Hack",
     "Hacking",
     "Data Breach",
+
     "ฟุตบอล",
     "ทีมชาติ",
     "พรีเมียร์ลีก",
@@ -169,10 +141,6 @@ LOW_PRIORITY_KEYWORDS = [
     "ไลฟ์สไตล์",
 ]
 
-
-# =========================
-# ให้คะแนนข่าว
-# =========================
 
 def score_news(item):
     title = item.get("title", "").lower()
@@ -197,16 +165,18 @@ def score_news(item):
 
 
 # =========================
-# แปลงเวลาเป็นเวลาไทย
+# THAI TIME
 # =========================
 
 def get_thai_time(item):
+
     published_time = item.get("published_parsed")
 
     if not published_time:
         return ""
 
     try:
+
         published_dt = datetime(
             published_time.tm_year,
             published_time.tm_mon,
@@ -228,13 +198,13 @@ def get_thai_time(item):
 
 
 # =========================
-# กรองข่าว 24 ชั่วโมง
-# + ตัดข่าวซ้ำ
-# + จัดอันดับ
+# GET NEWS FROM LAST 24 HOURS
 # =========================
 
 def get_recent_news(feed_entries, limit=5):
+
     now = datetime.now(timezone.utc)
+
     cutoff = now - timedelta(hours=24)
 
     recent_news = []
@@ -247,6 +217,7 @@ def get_recent_news(feed_entries, limit=5):
             continue
 
         try:
+
             published_dt = datetime(
                 published_time.tm_year,
                 published_time.tm_mon,
@@ -263,15 +234,14 @@ def get_recent_news(feed_entries, limit=5):
         except Exception:
             continue
 
-    # ตัดข่าวซ้ำ
+
     recent_news = remove_duplicates(recent_news)
 
-    # ให้คะแนน
+
     for item in recent_news:
         item["_news_score"] = score_news(item)
 
-    # เรียงคะแนนสูงสุดก่อน
-    # ถ้าคะแนนเท่ากัน ให้ข่าวใหม่กว่าอยู่ก่อน
+
     recent_news.sort(
         key=lambda item: (
             item.get("_news_score", 0),
@@ -280,11 +250,93 @@ def get_recent_news(feed_entries, limit=5):
         reverse=True,
     )
 
+
     return recent_news[:limit]
 
 
 # =========================
-# ดึงข่าวแต่ละหมวด
+# GET BALANCED IT NEWS
+# =========================
+
+def get_it_news():
+
+    # Get more candidates from both sources first
+    thai_candidates = get_recent_news(
+        tech_th_feed.entries,
+        10
+    )
+
+    global_candidates = get_recent_news(
+        tech_global_feed.entries,
+        10
+    )
+
+
+    # Prefer a balanced mix:
+    # 5 Thai + 5 Global maximum
+    thai_items = thai_candidates[:5]
+    global_items = global_candidates[:5]
+
+
+    # Remove duplicates between Thai and Global sources
+    selected = []
+    seen_titles = set()
+
+
+    for item in thai_items + global_items:
+
+        title = item.get("title", "").strip()
+
+        if not title:
+            continue
+
+        normalized = normalize_title(title)
+
+        if normalized in seen_titles:
+            continue
+
+        seen_titles.add(normalized)
+
+        selected.append(item)
+
+
+    # Maximum 10 IT news
+    selected = selected[:10]
+
+
+    # Minimum target = 5 if enough news exists
+    # If fewer than 5 after duplicate removal,
+    # try to fill from remaining candidates.
+
+    if len(selected) < 5:
+
+        remaining = thai_candidates[5:] + global_candidates[5:]
+
+        for item in remaining:
+
+            title = item.get("title", "").strip()
+
+            if not title:
+                continue
+
+            normalized = normalize_title(title)
+
+            if normalized in seen_titles:
+                continue
+
+            seen_titles.add(normalized)
+
+            selected.append(item)
+
+            if len(selected) >= 5:
+                break
+
+
+    return selected
+
+
+# =========================
+# NORMAL NEWS
 # =========================
 
 news_items = get_recent_news(
@@ -293,29 +345,26 @@ news_items = get_recent_news(
 )
 
 
-# IT รวมไทย + ต่างประเทศ
-tech_entries = combine_feeds(
-    tech_th_feed,
-    tech_global_feed
-)
+# =========================
+# IT NEWS
+# =========================
 
-tech_items = get_recent_news(
-    tech_entries,
-    5
-)
+it_items = get_it_news()
 
+
+# =========================
+# OTHER CATEGORIES
+# =========================
 
 politics_items = get_recent_news(
     politics_feed.entries,
     5
 )
 
-
 sports_items = get_recent_news(
     sports_feed.entries,
     5
 )
-
 
 economic_items = get_recent_news(
     economic_feed.entries,
@@ -324,7 +373,7 @@ economic_items = get_recent_news(
 
 
 # =========================
-# วันที่และเวลาปัจจุบันของไทย
+# DATE / TIME
 # =========================
 
 thai_timezone = timezone(timedelta(hours=7))
@@ -337,7 +386,7 @@ thai_time = now_thai.strftime("%H:%M")
 
 
 # =========================
-# สร้างข้อความ
+# BUILD TELEGRAM MESSAGE
 # =========================
 
 message = "☀️ GP MORNING BRIEF\n"
@@ -350,7 +399,7 @@ message += "━━━━━━━━━━━━━━━━━━\n\n"
 
 
 # =========================
-# เพิ่มหมวดข่าว
+# NORMAL SECTION
 # =========================
 
 def add_section(title, items):
@@ -358,6 +407,7 @@ def add_section(title, items):
     global message
 
     message += f"{title}\n\n"
+
 
     if not items:
 
@@ -380,40 +430,156 @@ def add_section(title, items):
             ""
         )
 
-        news_time = get_thai_time(
-            item
-        )
+        news_time = get_thai_time(item)
 
 
-        message += (
-            f"{index}️⃣ {title_text}\n"
-        )
+        message += f"{index}️⃣ {title_text}\n"
 
 
         if news_time:
 
-            message += (
-                f"   🕐 {news_time} น.\n"
-            )
+            message += f"   🕐 {news_time} น.\n"
 
 
         if link:
 
-            message += (
-                f"   🔗 {link}\n"
-            )
+            message += f"   🔗 {link}\n"
 
 
         message += "\n"
 
 
-    message += (
-        "━━━━━━━━━━━━━━━━━━\n\n"
-    )
+    message += "━━━━━━━━━━━━━━━━━━\n\n"
 
 
 # =========================
-# เพิ่มข่าว 5 หมวด
+# IT SECTION
+# =========================
+
+def add_it_section(items):
+
+    global message
+
+    message += "💻 IT / TECHNOLOGY 🇹🇭 + 🌎\n\n"
+
+
+    if not items:
+
+        message += "ไม่มีข่าว IT ในช่วง 24 ชั่วโมงล่าสุด\n\n"
+
+        message += "━━━━━━━━━━━━━━━━━━\n\n"
+
+        return
+
+
+    # Separate Thai and Global based on source URL
+
+    thai_items = []
+
+    global_items = []
+
+
+    for item in items:
+
+        link = item.get("link", "")
+
+        if "blognone.com" in link:
+
+            thai_items.append(item)
+
+        else:
+
+            global_items.append(item)
+
+
+    # Thai IT
+
+    if thai_items:
+
+        message += "🇹🇭 ข่าว IT ไทย\n\n"
+
+        for index, item in enumerate(
+            thai_items,
+            start=1
+        ):
+
+            title_text = item.get(
+                "title",
+                "ไม่มีหัวข้อ"
+            )
+
+            link = item.get(
+                "link",
+                ""
+            )
+
+            news_time = get_thai_time(item)
+
+
+            message += f"{index}️⃣ {title_text}\n"
+
+
+            if news_time:
+
+                message += f"   🕐 {news_time} น.\n"
+
+
+            if link:
+
+                message += f"   🔗 {link}\n"
+
+
+            message += "\n"
+
+
+    # Global IT
+
+    if global_items:
+
+        message += "🌎 ข่าว IT ต่างประเทศ\n\n"
+
+        start_number = len(thai_items) + 1
+
+
+        for index, item in enumerate(
+            global_items,
+            start=start_number
+        ):
+
+            title_text = item.get(
+                "title",
+                "ไม่มีหัวข้อ"
+            )
+
+            link = item.get(
+                "link",
+                ""
+            )
+
+            news_time = get_thai_time(item)
+
+
+            message += f"{index}️⃣ {title_text}\n"
+
+
+            if news_time:
+
+                message += f"   🕐 {news_time} น.\n"
+
+
+            if link:
+
+                message += f"   🔗 {link}\n"
+
+
+            message += "\n"
+
+
+    message += "━━━━━━━━━━━━━━━━━━\n\n"
+
+
+# =========================
+# ADD ALL SECTIONS
 # =========================
 
 add_section(
@@ -421,24 +587,19 @@ add_section(
     news_items
 )
 
-
-add_section(
-    "💻 IT / TECHNOLOGY 🇹🇭 + 🌎",
-    tech_items
+add_it_section(
+    it_items
 )
-
 
 add_section(
     "🏛️ การเมือง",
     politics_items
 )
 
-
 add_section(
     "⚽ SPORTS",
     sports_items
 )
-
 
 add_section(
     "📈 หุ้น / เศรษฐกิจ",
@@ -447,7 +608,7 @@ add_section(
 
 
 # =========================
-# ส่ง Telegram
+# SEND TELEGRAM
 # =========================
 
 url = (
@@ -473,5 +634,6 @@ response.raise_for_status()
 
 
 print(
-    "Morning Brief sent successfully."
+    f"Morning Brief sent successfully. "
+    f"IT news: {len(it_items)}"
 )
