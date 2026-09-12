@@ -37,10 +37,112 @@ economic_feed = feedparser.parse(ECONOMIC_RSS)
 
 def normalize_title(title):
     title = title.lower()
+
+    # ลบ URL
     title = re.sub(r"https?://\S+", "", title)
+
+    # ลบคำที่มักทำให้พาดหัวต่างกัน
+    remove_words = [
+        "ด่วน",
+        "ล่าสุด",
+        "เผย",
+        "เปิดเผย",
+        "รายงาน",
+        "ระบุ",
+        "ชี้",
+        "พบว่า",
+        "เตือน",
+        "ประกาศ",
+        "แล้ว",
+        "วันนี้",
+        "เมื่อวันนี้",
+        "ล่าสุดนี้",
+    ]
+
+    for word in remove_words:
+        title = title.replace(word, " ")
+
+    # ลบเครื่องหมายพิเศษ
     title = re.sub(r"[^\w\sก-๙]", " ", title)
+
+    # ลดช่องว่าง
     title = re.sub(r"\s+", " ", title).strip()
+
     return title
+
+
+def get_title_words(title):
+    normalized = normalize_title(title)
+
+    words = normalized.split()
+
+    # ตัดคำสั้นมากออก
+    words = [
+        word for word in words
+        if len(word) >= 2
+    ]
+
+    return set(words)
+
+
+def titles_are_similar(title1, title2):
+    words1 = get_title_words(title1)
+    words2 = get_title_words(title2)
+
+    if not words1 or not words2:
+        return False
+
+    common_words = words1.intersection(words2)
+
+    # จำนวนคำที่เหมือนกัน
+    common_count = len(common_words)
+
+    # คำนวณสัดส่วนความคล้าย
+    similarity = common_count / min(
+        len(words1),
+        len(words2)
+    )
+
+    # ถ้ามีคำสำคัญเหมือนกันหลายคำ
+    if common_count >= 4 and similarity >= 0.55:
+        return True
+
+    return False
+
+
+def remove_similar_news(items):
+    unique_items = []
+
+    for item in items:
+
+        title = item.get(
+            "title",
+            ""
+        ).strip()
+
+        if not title:
+            continue
+
+        is_duplicate = False
+
+        for existing in unique_items:
+
+            existing_title = existing.get(
+                "title",
+                ""
+            ).strip()
+
+            if titles_are_similar(
+                title,
+                existing_title
+            ):
+                is_duplicate = True
+                break
+
+        if not is_duplicate:
+            unique_items.append(item)
+
+    return unique_items
 
 
 def remove_duplicates(items):
@@ -454,7 +556,9 @@ def get_recent_news(feed_entries, limit=5):
             continue
 
 
-    recent_news = remove_duplicates(recent_news)
+   recent_news = remove_duplicates(recent_news)
+
+   recent_news = remove_similar_news(recent_news)
 
 
     for item in recent_news:
