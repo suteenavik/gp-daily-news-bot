@@ -401,7 +401,12 @@ def get_recent_news(feed_entries, limit=5):
     recent_news = []
 
     for item in feed_entries:
+
         published_time = item.get("published_parsed")
+
+        # บาง RSS ใช้ updated_parsed แทน published_parsed
+        if not published_time:
+            published_time = item.get("updated_parsed")
 
         if not published_time:
             continue
@@ -431,7 +436,8 @@ def get_recent_news(feed_entries, limit=5):
     recent_news.sort(
         key=lambda item: (
             item.get("_news_score", 0),
-            item.get("published_parsed"),
+            item.get("published_parsed")
+            or item.get("updated_parsed"),
         ),
         reverse=True,
     )
