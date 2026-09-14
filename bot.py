@@ -22,10 +22,8 @@ ECONOMIC_RSS = "http://rssfeeds.sanook.com/rss/feeds/sanook/news.economic.xml"
 # =========================
 
 news_feed = feedparser.parse(NEWS_RSS)
-
 tech_th_feed = feedparser.parse(TECH_TH_RSS)
 tech_global_feed = feedparser.parse(TECH_GLOBAL_RSS)
-
 politics_feed = feedparser.parse(POLITICS_RSS)
 sports_feed = feedparser.parse(SPORTS_RSS)
 economic_feed = feedparser.parse(ECONOMIC_RSS)
@@ -38,10 +36,8 @@ economic_feed = feedparser.parse(ECONOMIC_RSS)
 def normalize_title(title):
     title = title.lower()
 
-    # ลบ URL
     title = re.sub(r"https?://\S+", "", title)
 
-    # ลบคำที่มักทำให้พาดหัวต่างกัน
     remove_words = [
         "ด่วน",
         "ล่าสุด",
@@ -62,87 +58,10 @@ def normalize_title(title):
     for word in remove_words:
         title = title.replace(word, " ")
 
-    # ลบเครื่องหมายพิเศษ
     title = re.sub(r"[^\w\sก-๙]", " ", title)
-
-    # ลดช่องว่าง
     title = re.sub(r"\s+", " ", title).strip()
 
     return title
-
-
-def get_title_words(title):
-    normalized = normalize_title(title)
-
-    words = normalized.split()
-
-    # ตัดคำสั้นมากออก
-    words = [
-        word for word in words
-        if len(word) >= 2
-    ]
-
-    return set(words)
-
-
-def titles_are_similar(title1, title2):
-    words1 = get_title_words(title1)
-    words2 = get_title_words(title2)
-
-    if not words1 or not words2:
-        return False
-
-    common_words = words1.intersection(words2)
-
-    # จำนวนคำที่เหมือนกัน
-    common_count = len(common_words)
-
-    # คำนวณสัดส่วนความคล้าย
-    similarity = common_count / min(
-        len(words1),
-        len(words2)
-    )
-
-    # ถ้ามีคำสำคัญเหมือนกันหลายคำ
-    if common_count >= 4 and similarity >= 0.55:
-        return True
-
-    return False
-
-
-def remove_similar_news(items):
-    unique_items = []
-
-    for item in items:
-
-        title = item.get(
-            "title",
-            ""
-        ).strip()
-
-        if not title:
-            continue
-
-        is_duplicate = False
-
-        for existing in unique_items:
-
-            existing_title = existing.get(
-                "title",
-                ""
-            ).strip()
-
-            if titles_are_similar(
-                title,
-                existing_title
-            ):
-                is_duplicate = True
-                break
-
-        if not is_duplicate:
-            unique_items.append(item)
-
-    return unique_items
 
 
 def remove_duplicates(items):
@@ -232,36 +151,18 @@ IMPORTANT_KEYWORDS = [
 ]
 
 
-LOW_PRIORITY_KEYWORDS = [
-    "ดารา",
-    "บันเทิง",
-    "ละคร",
-    "เพลง",
-    "แฟชั่น",
-    "ความรัก",
-    "ดวง",
-    "ไลฟ์สไตล์",
-]
-
-
 def score_news(item):
     title = item.get("title", "").lower()
 
     score = 0
 
-    # =====================================
-    # ข่าวสำคัญทั่วไป
-    # =====================================
-
+    # Important news
     for keyword in IMPORTANT_KEYWORDS:
         if keyword.lower() in title:
             score += 2
 
-    # =====================================
-    # ข่าวด่วน / เหตุการณ์สำคัญ
-    # =====================================
-
-    HIGH_IMPACT_KEYWORDS = [
+    # High impact
+    high_impact_keywords = [
         "ด่วน",
         "ล่าสุด",
         "ประกาศ",
@@ -274,15 +175,12 @@ def score_news(item):
         "สำคัญ",
     ]
 
-    for keyword in HIGH_IMPACT_KEYWORDS:
+    for keyword in high_impact_keywords:
         if keyword.lower() in title:
             score += 4
 
-    # =====================================
     # AI
-    # =====================================
-
-    AI_KEYWORDS = [
+    ai_keywords = [
         "ai",
         "artificial intelligence",
         "ปัญญาประดิษฐ์",
@@ -297,15 +195,12 @@ def score_news(item):
         "copilot",
     ]
 
-    for keyword in AI_KEYWORDS:
+    for keyword in ai_keywords:
         if keyword.lower() in title:
             score += 4
 
-    # =====================================
     # Cybersecurity
-    # =====================================
-
-    CYBER_KEYWORDS = [
+    cyber_keywords = [
         "cybersecurity",
         "cyber security",
         "ไซเบอร์",
@@ -324,15 +219,12 @@ def score_news(item):
         "ขโมยข้อมูล",
     ]
 
-    for keyword in CYBER_KEYWORDS:
+    for keyword in cyber_keywords:
         if keyword.lower() in title:
             score += 5
 
-    # =====================================
-    # บริษัท Technology รายใหญ่
-    # =====================================
-
-    BIG_TECH = [
+    # Big Tech
+    big_tech = [
         "microsoft",
         "google",
         "apple",
@@ -350,15 +242,12 @@ def score_news(item):
         "shopify",
     ]
 
-    for keyword in BIG_TECH:
+    for keyword in big_tech:
         if keyword.lower() in title:
             score += 3
 
-    # =====================================
-    # Technology Trends
-    # =====================================
-
-    TECH_TREND_KEYWORDS = [
+    # Technology trends
+    tech_trend_keywords = [
         "cloud",
         "5g",
         "6g",
@@ -377,15 +266,12 @@ def score_news(item):
         "รถยนต์ไร้คนขับ",
     ]
 
-    for keyword in TECH_TREND_KEYWORDS:
+    for keyword in tech_trend_keywords:
         if keyword.lower() in title:
             score += 2
 
-    # =====================================
-    # การเมือง
-    # =====================================
-
-    POLITICS_KEYWORDS = [
+    # Politics
+    politics_keywords = [
         "รัฐบาล",
         "นายกรัฐมนตรี",
         "รัฐมนตรี",
@@ -398,15 +284,12 @@ def score_news(item):
         "พรรคร่วม",
     ]
 
-    for keyword in POLITICS_KEYWORDS:
+    for keyword in politics_keywords:
         if keyword.lower() in title:
             score += 4
 
-    # =====================================
-    # เศรษฐกิจ / การเงิน
-    # =====================================
-
-    ECONOMIC_KEYWORDS = [
+    # Economy
+    economic_keywords = [
         "ตลาดหุ้น",
         "หุ้น",
         "set",
@@ -426,15 +309,12 @@ def score_news(item):
         "gdp",
     ]
 
-    for keyword in ECONOMIC_KEYWORDS:
+    for keyword in economic_keywords:
         if keyword.lower() in title:
             score += 3
 
-    # =====================================
-    # กีฬา
-    # =====================================
-
-    SPORTS_KEYWORDS = [
+    # Sports
+    sports_keywords = [
         "ผลการแข่งขัน",
         "ชนะ",
         "แพ้",
@@ -450,15 +330,12 @@ def score_news(item):
         "world cup",
     ]
 
-    for keyword in SPORTS_KEYWORDS:
+    for keyword in sports_keywords:
         if keyword.lower() in title:
             score += 3
 
-    # =====================================
-    # ข่าวบันเทิง / ข่าวเบา
-    # =====================================
-
-    LOW_PRIORITY_KEYWORDS = [
+    # Low priority
+    low_priority_keywords = [
         "ดารา",
         "บันเทิง",
         "ละคร",
@@ -471,14 +348,11 @@ def score_news(item):
         "ท่องเที่ยว",
     ]
 
-    for keyword in LOW_PRIORITY_KEYWORDS:
+    for keyword in low_priority_keywords:
         if keyword.lower() in title:
             score -= 3
 
-    # =====================================
-    # มีตัวเลข = มักมีข้อมูลสำคัญ
-    # =====================================
-
+    # News with numbers
     if re.search(r"\d", title):
         score += 1
 
@@ -490,14 +364,12 @@ def score_news(item):
 # =========================
 
 def get_thai_time(item):
-
     published_time = item.get("published_parsed")
 
     if not published_time:
         return ""
 
     try:
-
         published_dt = datetime(
             published_time.tm_year,
             published_time.tm_mon,
@@ -523,22 +395,18 @@ def get_thai_time(item):
 # =========================
 
 def get_recent_news(feed_entries, limit=5):
-
     now = datetime.now(timezone.utc)
-
     cutoff = now - timedelta(hours=24)
 
     recent_news = []
 
     for item in feed_entries:
-
         published_time = item.get("published_parsed")
 
         if not published_time:
             continue
 
         try:
-
             published_dt = datetime(
                 published_time.tm_year,
                 published_time.tm_mon,
@@ -555,13 +423,10 @@ def get_recent_news(feed_entries, limit=5):
         except Exception:
             continue
 
-
     recent_news = remove_duplicates(recent_news)
-
 
     for item in recent_news:
         item["_news_score"] = score_news(item)
-
 
     recent_news.sort(
         key=lambda item: (
@@ -571,7 +436,6 @@ def get_recent_news(feed_entries, limit=5):
         reverse=True,
     )
 
-
     return recent_news[:limit]
 
 
@@ -580,32 +444,24 @@ def get_recent_news(feed_entries, limit=5):
 # =========================
 
 def get_it_news():
-
-    # Get more candidates from both sources first
     thai_candidates = get_recent_news(
         tech_th_feed.entries,
-        10
+        10,
     )
 
     global_candidates = get_recent_news(
         tech_global_feed.entries,
-        10
+        10,
     )
 
-
-    # Prefer a balanced mix:
-    # 5 Thai + 5 Global maximum
+    # Maximum 5 Thai + 5 Global initially
     thai_items = thai_candidates[:5]
     global_items = global_candidates[:5]
 
-
-    # Remove duplicates between Thai and Global sources
     selected = []
     seen_titles = set()
 
-
     for item in thai_items + global_items:
-
         title = item.get("title", "").strip()
 
         if not title:
@@ -617,24 +473,19 @@ def get_it_news():
             continue
 
         seen_titles.add(normalized)
-
         selected.append(item)
-
 
     # Maximum 10 IT news
     selected = selected[:10]
 
-
-    # Minimum target = 5 if enough news exists
-    # If fewer than 5 after duplicate removal,
-    # try to fill from remaining candidates.
-
+    # Try to keep at least 5 if enough news exists
     if len(selected) < 5:
-
-        remaining = thai_candidates[5:] + global_candidates[5:]
+        remaining = (
+            thai_candidates[5:]
+            + global_candidates[5:]
+        )
 
         for item in remaining:
-
             title = item.get("title", "").strip()
 
             if not title:
@@ -646,50 +497,38 @@ def get_it_news():
                 continue
 
             seen_titles.add(normalized)
-
             selected.append(item)
 
             if len(selected) >= 5:
                 break
 
-
     return selected
 
 
 # =========================
-# NORMAL NEWS
+# GET ALL NEWS
 # =========================
 
 news_items = get_recent_news(
     news_feed.entries,
-    5
+    5,
 )
-
-
-# =========================
-# IT NEWS
-# =========================
 
 it_items = get_it_news()
 
-
-# =========================
-# OTHER CATEGORIES
-# =========================
-
 politics_items = get_recent_news(
     politics_feed.entries,
-    5
+    5,
 )
 
 sports_items = get_recent_news(
     sports_feed.entries,
-    5
+    5,
 )
 
 economic_items = get_recent_news(
     economic_feed.entries,
-    5
+    5,
 )
 
 
@@ -702,7 +541,6 @@ thai_timezone = timezone(timedelta(hours=7))
 now_thai = datetime.now(thai_timezone)
 
 thai_date = now_thai.strftime("%d/%m/%Y")
-
 thai_time = now_thai.strftime("%H:%M")
 
 
@@ -711,11 +549,8 @@ thai_time = now_thai.strftime("%H:%M")
 # =========================
 
 message = "☀️ GP MORNING BRIEF\n"
-
 message += f"📅 {thai_date}  🕐 {thai_time} น.\n"
-
 message += "📰 ข่าวสำคัญในรอบ 24 ชั่วโมง\n"
-
 message += "━━━━━━━━━━━━━━━━━━\n\n"
 
 
@@ -724,51 +559,37 @@ message += "━━━━━━━━━━━━━━━━━━\n\n"
 # =========================
 
 def add_section(title, items):
-
     global message
 
     message += f"{title}\n\n"
 
-
     if not items:
-
         message += "ไม่มีข่าวในช่วง 24 ชั่วโมงล่าสุด\n\n"
-
         message += "━━━━━━━━━━━━━━━━━━\n\n"
-
         return
 
-
     for index, item in enumerate(items, start=1):
-
         title_text = item.get(
             "title",
-            "ไม่มีหัวข้อ"
+            "ไม่มีหัวข้อ",
         )
 
         link = item.get(
             "link",
-            ""
+            "",
         )
 
         news_time = get_thai_time(item)
 
-
         message += f"{index}️⃣ {title_text}\n"
 
-
         if news_time:
-
             message += f"   🕐 {news_time} น.\n"
 
-
         if link:
-
             message += f"   🔗 {link}\n"
 
-
         message += "\n"
-
 
     message += "━━━━━━━━━━━━━━━━━━\n\n"
 
@@ -778,123 +599,87 @@ def add_section(title, items):
 # =========================
 
 def add_it_section(items):
-
     global message
 
     message += "💻 IT / TECHNOLOGY 🇹🇭 + 🌎\n\n"
 
-
     if not items:
-
         message += "ไม่มีข่าว IT ในช่วง 24 ชั่วโมงล่าสุด\n\n"
-
         message += "━━━━━━━━━━━━━━━━━━\n\n"
-
         return
 
-
-    # Separate Thai and Global based on source URL
-
     thai_items = []
-
     global_items = []
 
-
     for item in items:
-
         link = item.get("link", "")
 
         if "blognone.com" in link:
-
             thai_items.append(item)
-
         else:
-
             global_items.append(item)
 
-
     # Thai IT
-
     if thai_items:
-
         message += "🇹🇭 ข่าว IT ไทย\n\n"
 
         for index, item in enumerate(
             thai_items,
-            start=1
+            start=1,
         ):
-
             title_text = item.get(
                 "title",
-                "ไม่มีหัวข้อ"
+                "ไม่มีหัวข้อ",
             )
 
             link = item.get(
                 "link",
-                ""
+                "",
             )
 
             news_time = get_thai_time(item)
 
-
             message += f"{index}️⃣ {title_text}\n"
 
-
             if news_time:
-
                 message += f"   🕐 {news_time} น.\n"
 
-
             if link:
-
                 message += f"   🔗 {link}\n"
-
 
             message += "\n"
 
-
     # Global IT
-
     if global_items:
-
         message += "🌎 ข่าว IT ต่างประเทศ\n\n"
 
         start_number = len(thai_items) + 1
 
-
         for index, item in enumerate(
             global_items,
-            start=start_number
+            start=start_number,
         ):
-
             title_text = item.get(
                 "title",
-                "ไม่มีหัวข้อ"
+                "ไม่มีหัวข้อ",
             )
 
             link = item.get(
                 "link",
-                ""
+                "",
             )
 
             news_time = get_thai_time(item)
 
-
             message += f"{index}️⃣ {title_text}\n"
 
-
             if news_time:
-
                 message += f"   🕐 {news_time} น.\n"
 
-
             if link:
-
                 message += f"   🔗 {link}\n"
 
-
             message += "\n"
-
 
     message += "━━━━━━━━━━━━━━━━━━\n\n"
 
@@ -905,26 +690,26 @@ def add_it_section(items):
 
 add_section(
     "📰 ข่าวเด่น",
-    news_items
+    news_items,
 )
 
 add_it_section(
-    it_items
+    it_items,
 )
 
 add_section(
     "🏛️ การเมือง",
-    politics_items
+    politics_items,
 )
 
 add_section(
     "⚽ SPORTS",
-    sports_items
+    sports_items,
 )
 
 add_section(
     "📈 หุ้น / เศรษฐกิจ",
-    economic_items
+    economic_items,
 )
 
 
@@ -937,22 +722,16 @@ url = (
     f"bot{TOKEN}/sendMessage"
 )
 
-
 response = requests.post(
-
     url,
-
     data={
         "chat_id": CHAT_ID,
         "text": message,
     },
-
     timeout=30,
 )
 
-
 response.raise_for_status()
-
 
 print(
     f"Morning Brief sent successfully. "
